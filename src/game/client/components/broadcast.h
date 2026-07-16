@@ -21,7 +21,10 @@ class CBroadcast : public CComponent
 
 	enum
 	{
-		MAX_BROADCAST_MSG_SIZE = 128,
+		// Keep this in sync with the server-side broadcast buffers. The old
+		// 128-byte limit truncated UTF-8 messages especially quickly, because
+		// Cyrillic glyphs use multiple bytes.
+		MAX_BROADCAST_MSG_SIZE = 1024,
 		MAX_BROADCAST_LINES = 3,
 	};
 

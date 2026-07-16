@@ -2138,7 +2138,12 @@ void CGameClient::ParsingMmoData()
 
 	// items information
 	CUIGameInterface::m_aItemsDataInformation.clear();
-	nlohmann::json JsonData = nlohmann::json::parse(Client()->GetJsonDataMRPG(MMO_DATA_INVENTORY_INFORMATION));
+	nlohmann::json JsonData = nlohmann::json::parse(Client()->GetJsonDataMRPG(MMO_DATA_INVENTORY_INFORMATION), nullptr, false);
+	if(JsonData.is_discarded() || !JsonData.is_object() || !JsonData.contains("items"))
+	{
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "game", "legacy data.mmo is unavailable; using server-side MRPG data");
+		return;
+	}
 	auto ItemsList = JsonData["items"];
 	for(auto& p : ItemsList)
 	{

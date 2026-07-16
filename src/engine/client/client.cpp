@@ -1667,7 +1667,16 @@ void CClient::ProcessServerPacket(CNetChunk* pPacket)
 			int Size = Unpacker.GetInt();
 			int ChunkNum = Unpacker.GetInt();
 			int ChunkSize = Unpacker.GetInt();
-			if(Unpacker.Error() || Size <= 0)
+			if(Unpacker.Error())
+				return;
+			if(Size == 0)
+			{
+				m_DownloadMmoData.m_Downloaded = true;
+				m_pConsole->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "client/network", "modern MRPG server: legacy data package is not required");
+				SendReady();
+				return;
+			}
+			if(Size < 0)
 				return;
 
 			const SHA256_DIGEST* pMmoSha256 = (const SHA256_DIGEST*)Unpacker.GetRaw(sizeof(*pMmoSha256));

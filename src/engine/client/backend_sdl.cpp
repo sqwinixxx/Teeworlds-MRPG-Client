@@ -615,6 +615,17 @@ void CCommandProcessor_SDL_OpenGL::RunBuffer(CCommandBuffer* pBuffer)
 
 int CGraphicsBackend_SDL_OpenGL::Init(const char* pName, int* pScreen, int* pWindowWidth, int* pWindowHeight, int* pScreenWidth, int* pScreenHeight, int FsaaSamples, int Flags, int* pDesktopWidth, int* pDesktopHeight)
 {
+#if defined(CONF_FAMILY_UNIX)
+	// Older SDL/OpenGL window teardown can hit a Hyprland native-Wayland
+	// surface lifetime bug. Prefer the stable XWayland path on Hyprland,
+	// while still allowing an explicit SDL_VIDEODRIVER override.
+	if(!SDL_getenv("SDL_VIDEODRIVER") && SDL_getenv("HYPRLAND_INSTANCE_SIGNATURE") && SDL_getenv("DISPLAY"))
+	{
+		SDL_setenv("SDL_VIDEODRIVER", "x11", 0);
+		dbg_msg("sdl", "Hyprland detected, using the X11 video backend for safe window teardown");
+	}
+#endif
+
 	if (!SDL_WasInit(SDL_INIT_VIDEO))
 	{
 		if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0)
@@ -771,6 +782,16 @@ int CGraphicsBackend_SDL_OpenGL::Shutdown()
 	StopProcessor();
 	delete m_pProcessor;
 	m_pProcessor = 0;
+
+	// Release compositor-owned input/fullscreen state before destroying the
+	// surface. This also makes shutdown well-defined when the close button is
+	// used while the game has relative mouse mode enabled.
+	SDL_SetRelativeMouseMode(SDL_FALSE);
+	SDL_SetWindowGrab(m_pWindow, SDL_FALSE);
+	SDL_ShowCursor(SDL_ENABLE);
+	if(SDL_GetWindowFlags(m_pWindow) & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP))
+		SDL_SetWindowFullscreen(m_pWindow, 0);
+	SDL_PumpEvents();
 
 	SDL_GL_DeleteContext(m_GLContext);
 	SDL_DestroyWindow(m_pWindow);

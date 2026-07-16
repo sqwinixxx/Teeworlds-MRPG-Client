@@ -260,7 +260,13 @@ void CInput::MouseModeRelative()
 	{
 		m_MouseInputRelative = true;
 		SDL_ShowCursor(SDL_DISABLE);
-		if(SDL_SetHintWithPriority(SDL_HINT_MOUSE_RELATIVE_MODE_WARP, g_Config.m_InpGrab ? "0" : "1", SDL_HINT_OVERRIDE) == SDL_FALSE)
+		const char* pVideoDriver = SDL_GetCurrentVideoDriver();
+		const bool HyprlandXWayland = pVideoDriver && str_comp(pVideoDriver, "x11") == 0 && SDL_getenv("HYPRLAND_INSTANCE_SIGNATURE");
+		// Pointer warping is unreliable under XWayland and can leave the game
+		// without relative motion events. Use SDL's raw relative input there so
+		// aiming, tutorial camera movement and spectator free-view keep working.
+		const char* pRelativeModeWarp = g_Config.m_InpGrab || HyprlandXWayland ? "0" : "1";
+		if(SDL_SetHintWithPriority(SDL_HINT_MOUSE_RELATIVE_MODE_WARP, pRelativeModeWarp, SDL_HINT_OVERRIDE) == SDL_FALSE)
 		{
 			m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "input", "unable to switch relative mouse mode");
 		}

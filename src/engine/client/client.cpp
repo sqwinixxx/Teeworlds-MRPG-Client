@@ -284,6 +284,9 @@ CClient::CClient() : m_DemoPlayer(&m_SnapshotDelta), m_DemoRecorder(&m_SnapshotD
 
 	// mmotee
 	m_DownloadMmoData.Clear();
+	m_MmoDataInfoReceived = false;
+	m_ReadySent = false;
+	m_VanillaReadyTime = 0;
 	m_pMmoInfoTask = nullptr;
 	m_aNews[0] = '\0';
 
@@ -353,11 +356,32 @@ void CClient::SendEnterGame()
 
 void CClient::SendReady()
 {
-	if(m_DownloadMap.m_Downloaded && m_DownloadMmoData.m_Downloaded)
+	if(!m_DownloadMap.m_Downloaded || m_ReadySent)
+		return;
+
+	if(m_MmoDataInfoReceived)
 	{
-		CMsgPacker Msg(NETMSG_READY, true);
-		SendMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_FLUSH);
+		if(!m_DownloadMmoData.m_Downloaded)
+			return;
 	}
+	else
+	{
+		// Vanilla 0.7 servers do not send NETMSG_DATA_MMO_INFO. Give an MRPG
+		// marker sent after MAP_CHANGE a short time to arrive, then continue
+		// with the standard map-only handshake.
+		if(m_VanillaReadyTime == 0)
+		{
+			m_VanillaReadyTime = time_get() + time_freq() / 4;
+			return;
+		}
+		if(time_get() < m_VanillaReadyTime)
+			return;
+		m_pConsole->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "client/network", "vanilla server detected: continuing without MRPG data");
+	}
+
+	CMsgPacker Msg(NETMSG_READY, true);
+	SendMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_FLUSH);
+	m_ReadySent = true;
 }
 
 void CClient::RconAuth(const char* pName, const char* pPassword)
@@ -591,6 +615,9 @@ void CClient::DisconnectWithReason(const char* pReason)
 		Storage()->RemoveFile(m_DownloadMmoData.m_aFilenameTemp, IStorageEngine::TYPE_SAVE);
 	}
 	m_DownloadMmoData.Clear();
+	m_MmoDataInfoReceived = false;
+	m_ReadySent = false;
+	m_VanillaReadyTime = 0;
 
 	// clear the current server info
 	mem_zero(&m_CurrentServerInfo, sizeof(m_CurrentServerInfo));
@@ -1268,6 +1295,9 @@ void CClient::ProcessServerPacket(CNetChunk* pPacket)
 			if (Unpacker.Error())
 				return;
 
+			m_ReadySent = false;
+			m_VanillaReadyTime = 0;
+
 			const SHA256_DIGEST* pMapSha256 = (const SHA256_DIGEST*)Unpacker.GetRaw(sizeof(*pMapSha256));
 			const char* pError = 0;
 
@@ -1663,6 +1693,7 @@ void CClient::ProcessServerPacket(CNetChunk* pPacket)
 		}
 		else if((pPacket->m_Flags & NET_CHUNKFLAG_VITAL) != 0 && Msg == NETMSG_DATA_MMO_INFO)
 		{
+			m_MmoDataInfoReceived = true;
 			int Crc = Unpacker.GetInt();
 			int Size = Unpacker.GetInt();
 			int ChunkNum = Unpacker.GetInt();
@@ -1795,6 +1826,9 @@ void CClient::PumpNetwork()
 		if (!(Packet.m_Flags & NETSENDFLAG_CONNLESS))
 			ProcessServerPacket(&Packet);
 	}
+
+	if(State() == IClient::STATE_LOADING && m_DownloadMap.m_Downloaded && !m_ReadySent)
+		SendReady();
 
 	// process connless packets data
 	m_ContactClient.Update();

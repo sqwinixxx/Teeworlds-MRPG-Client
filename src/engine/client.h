@@ -111,6 +111,7 @@ public:
 	virtual int MapDownloadTotalsize() const = 0;
 	virtual int MmoDownloadAmount() const = 0;
 	virtual int MmoDownloadTotalsize() const = 0;
+	virtual bool IsMmoConnection() const = 0;
 
 	// input
 	virtual const int *GetInput(int Tick) const = 0;

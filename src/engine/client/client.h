@@ -165,6 +165,9 @@ class CClient : public IClient, public CDemoPlayer::IListener
 	//mmotee
 	CDataMMO m_DataMmo;
 	CDownloadChunkItem m_DownloadMmoData;
+	bool m_MmoDataInfoReceived;
+	bool m_ReadySent;
+	int64 m_VanillaReadyTime;
 	bool LoadMmoData(const SHA256_DIGEST* pWantedSha256, unsigned WantedCrc);
 
 	std::shared_ptr<CGetFile> m_pMmoInfoTask;
@@ -324,6 +327,7 @@ public:
 	int MapDownloadTotalsize() const override { return m_DownloadMap.m_Totalsize; }
 	int MmoDownloadAmount() const override { return m_DownloadMmoData.m_Amount; }
 	int MmoDownloadTotalsize() const override { return m_DownloadMmoData.m_Totalsize; }
+	bool IsMmoConnection() const override { return m_MmoDataInfoReceived; }
 
 	void PumpNetwork();
 

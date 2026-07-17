@@ -1114,7 +1114,7 @@ void CGameClient::OnMessage(int MsgId, CUnpacker *pUnpacker)
 		Client()->EnterGame();
 
 		// send information what used client
-		if (!m_MmoMsgSent && Client()->State() != IClient::STATE_DEMOPLAYBACK)
+		if (!m_MmoMsgSent && Client()->State() != IClient::STATE_DEMOPLAYBACK && Client()->IsMmoConnection())
 		{
 			CNetMsg_Cl_IsMmoServer Msg;
 			Msg.m_Version = PROTOCOL_VERSION_MMO;
